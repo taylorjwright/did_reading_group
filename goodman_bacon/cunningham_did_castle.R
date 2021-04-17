@@ -75,21 +75,12 @@ xvar <- c(
 law <- c("cdl")
 
 dd_formula <- as.formula(
-  paste("l_homicide ~ ",
-        paste(
-          paste(xvar, collapse = " + "),
-          paste(region, collapse = " + "),
-          paste(lintrend, collapse = " + "),
-          paste("post", collapse = " + "), sep = " + "),
-        "| year + sid | 0 | sid"
-  )
-)
+  'l_homicide ~ post | year + sid | 0 | sid')
 
 # Fixed effect regression using post as treatment variable 
 # this should be the top panel of table 9.8
-# note, I think the coefficient in the table should be 0.0769 rather than 0.069
-dd_reg <- felm(dd_formula, weights = castle$popwt, data = castle)
-summary(dd_reg)
+bacon_dd_reg <- felm(bacon_dd_formula, data = castle)
+summary(bacon_dd_reg)
 
 ##############################################################################
 #                                 Bacondecomp                                #
@@ -102,11 +93,14 @@ df_bacon = bacon(l_homicide ~ post,
                  id_var = "state",
                  time_var = "year")
 
+# we should be able to verify that the estiamte from top panel of 
+# table 9.8 is the sum of the weighted estimates
+dd_estimate == sum(df_bacon$estimate*df_bacon$weight)
+
 # plot the estimates and weights (without controls)
 # this is figure 9.26 
-# note: (I actually think the hline should be 0.0769)
 ggplot(df_bacon) +
   aes(x = weight, y = estimate, shape = factor(type)) +
   geom_point() +
-  geom_hline(yintercept = 0.069) +
+  geom_hline(yintercept = dd_estimate) +
   labs(x = "Weight", y = "Estimate", shape = "Type")
