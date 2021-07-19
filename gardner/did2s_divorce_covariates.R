@@ -16,14 +16,16 @@ library(broom)
 ### Goodman-Bacon and Austin Nichols
 divorce = read.dta13("http://pped.org/bacon_example.dta")
 
-### 2 — generate yeasr relative to treatment
+### 2 — generate years relative to treatment, never treated units get "Inf"
+### we'll use these for the dynamic DiD / event study estimation later
 divorce = divorce %>% 
   rename(treat_year = `_nfd`) %>% # rename to be more explicit
   mutate(
     rel_year = if_else(is.na(treat_year) == "TRUE", Inf, year - treat_year)
   )
 
-### 3 — get our static did2s estimate
+### 3 — get our static did2s estimate with covariates in the first stage only
+### this allows for possibility that treatment effect depends on the covariates
 did2s_static = did2s(
   data         = divorce, 
   yname        = "asmrs",
@@ -34,6 +36,33 @@ did2s_static = did2s(
 )
 
 esttable(did2s_static)
+
+### alternatively you could include the covariates in both first & second stages 
+### which is how traditional TWFE does things but implicitly assumes that 
+### treatment effects are independent of covariates
+did2s_static_trad = did2s(
+  data         = divorce, 
+  yname        = "asmrs",
+  first_stage  = ~ asmrh + pcinc + cases | stfips + year, 
+  second_stage = ~i(post, ref = FALSE) + asmrh + pcinc + cases,
+  treatment    = "post",
+  cluster_var  = "stfips"
+)
+
+esttable(did2s_static_trad)
+
+### still alternatively, you could interact covariates with time indicators to 
+### allow for covariate specific trends
+did2s_static_trends = did2s(
+  data         = divorce, 
+  yname        = "asmrs",
+  first_stage  = ~ asmrh + pcinc + cases | stfips + year, 
+  second_stage = ~i(post, ref = FALSE) + asmrh + pcinc + cases,
+  treatment    = "post",
+  cluster_var  = "stfips"
+)
+
+esttable(did2s_static_trends)
 
 ### 4 — get our bog standard static twfe 
 
